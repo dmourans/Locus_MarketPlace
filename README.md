@@ -88,7 +88,7 @@ jupyter notebook analise_municipios.ipynb
 
 | Antônio Carlos | [@ACSJr](https://github.com/ACSJr) |
 
-| Anderson Belarmino | [@Anr30](https://github.com/Anr30). |
+| Anderson Belarmino | [@Anr30](https://github.com/Anr30) |
 ## 📄 Licença
 
 Este projeto é de uso acadêmico. Dados públicos utilizados conforme licença aberta do [dados.gov.br](https://dados.gov.br).
