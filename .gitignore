@@ -1,1 +1,9 @@
-20260226_MOSC_baseresumida.csv
+__pycache__/
+*.pyc
+
+.ipynb_checkpoints/
+
+.vscode/
+
+.DS_Store
+Thumbs.db
