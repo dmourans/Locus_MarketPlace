@@ -83,9 +83,13 @@ jupyter notebook analise_municipios.ipynb
 | Pamela Soares | [@PaamSoares](https://github.com/PaamSoares) |
 
 | Mateus Fernandes | [@mateusfeoliveira](https://github.com/mateusfeoliveira) |
+
 | Deivid Nogueira | [@dmourans](https://github.com/dmourans) |
+
 | Antônio Carlos | [@ACSJr](https://github.com/ACSJr) |
+
 | Rauany Costa | [@Rau-Costa](https://github.com/Rau-Costa) |
+
 | Anderson Belarmino | [@Anr30](https://github.com/Anr30) |
 
 ## 📄 Licença
