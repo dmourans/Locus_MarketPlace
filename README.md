@@ -97,21 +97,15 @@ jupyter notebook analise_municipios.ipynb
 
 ## 👥 Integrantes do Grupo
 
-| Nome | GitHub |
-
-| Pamela Soares | [@PaamSoares](https://github.com/PaamSoares) |
-
-| Mateus Fernandes | [@mateusfeoliveira](https://github.com/mateusfeoliveira) |
-
-| Deivid Nogueira | [@dmourans](https://github.com/dmourans) |
-
-| Antônio Carlos | [@ACSJr](https://github.com/ACSJr) |
-
-| Rauany Costa | [@Rau-Costa](https://github.com/Rau-Costa) |
-
-| Anderson Belarmino | [@Anr30](https://github.com/Anr30) |
-
-| Denys Oliveira | [@dns97](https://github.com/denysOliveira97) |
+| Avatar | Nome | GitHub |
+|:---:|---|---|
+| <img src="https://github.com/Anr30.png" width="40" style="border-radius:50%"> | Anderson Belarmino | [@Anr30](https://github.com/Anr30) |
+| <img src="https://github.com/ACSJr.png" width="40" style="border-radius:50%"> | Antônio Carlos | [@ACSJr](https://github.com/ACSJr) |
+| <img src="https://github.com/dmourans.png" width="40" style="border-radius:50%"> | Deivid Nogueira | [@dmourans](https://github.com/dmourans) |
+| <img src="https://github.com/denysOliveira97.png" width="40" style="border-radius:50%"> | Denys Oliveira | [@dns97](https://github.com/denysOliveira97) |
+| <img src="https://github.com/mateusfeoliveira.png" width="40" style="border-radius:50%"> | Mateus Fernandes | [@mateusfeoliveira](https://github.com/mateusfeoliveira) |
+| <img src="https://github.com/PaamSoares.png" width="40" style="border-radius:50%"> | Pamela Soares | [@PaamSoares](https://github.com/PaamSoares) |
+| <img src="https://github.com/Rau-Costa.png" width="40" style="border-radius:50%"> | Rauany Costa | [@Rau-Costa](https://github.com/Rau-Costa) |
 
 ## 📄 Licença
 
