@@ -1,7 +1,13 @@
 # 🤝 Locus MarketPlace — Conectando Doadores, Centros de Doação e Pessoas Carentes
 
+![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
+![Streamlit](https://img.shields.io/badge/Streamlit-%23FE4B4B.svg?style=for-the-badge&logo=streamlit&logoColor=white)
+![Pandas](https://img.shields.io/badge/pandas-%23150458.svg?style=for-the-badge&logo=pandas&logoColor=white)
+
 > Projeto acadêmico desenvolvido para a disciplina de **PROJETO INTEGRADOR: CIÊNCIA DE DADOS APLICADA A SITUAÇÕES DE MERCADO**  
 > SENAC EAD — Banco de Dados
+
+🌐 **Acesse o Dashboard Interativo Online:** [locusmarketplace.streamlit.app](https://locusmarketplace.streamlit.app/)
 
 ## 📌 Sobre o Projeto
 
@@ -11,6 +17,9 @@ O **Locus MarketPlace** é uma iniciativa de análise e visualização de dados 
 - 🏢 **Centros de Doação** — CRAS, CREAS e ONGs cadastradas
 - ❤️ **Pessoas em Situação de Vulnerabilidade** — beneficiários dos serviços de assistência social
 
+## 📸 Demonstração
+
+*(Substitua este texto por capturas de tela do seu Dashboard em funcionamento. Exemplo: `![Print do Painel](link-da-imagem.png)`)*
 
 ## 📂 Estrutura do Repositório
 
@@ -70,7 +79,17 @@ cd <nome-do-repo>
 pip install -r requirements.txt
 ```
 
-### 3. Execute o notebook
+### 3. Execute o Dashboard (Web App)
+
+Para abrir a interface do painel interativo no seu navegador:
+
+```bash
+streamlit run app.py
+```
+
+### 4. (Opcional) Execute o notebook de análise
+
+Para ver a etapa de tratamento dos dados:
 
 ```bash
 jupyter notebook analise_municipios.ipynb
