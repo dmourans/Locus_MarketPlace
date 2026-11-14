@@ -56,6 +56,8 @@ Locus_Marketplace
 | `doadores2025.csv` | Dados próprios / simulados | Perfil de doadores cadastrados |
 | `doações2024.csv` | Dados próprios / simulados | Histórico de doações realizadas |
 
+Esquema analítico com 6 dimensões e 2 fatos. Scripts e instruções em [`sql/README.md`](sql/README.md).
+
 ## 🛠️ Tecnologias Utilizadas
 
 - **Python 3.10+**
