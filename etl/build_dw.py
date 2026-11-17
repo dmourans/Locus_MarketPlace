@@ -4,15 +4,20 @@ import sqlite3
 import sys
 from pathlib import Path
 
+try:
+    from etl.extract_transform import STAGING, gerar_staging
+except ModuleNotFoundError:  # executado como script: python etl/build_dw.py
+    from extract_transform import STAGING, gerar_staging
+
 RAIZ = Path(__file__).resolve().parent.parent
 SQL = RAIZ / "sql"
 BANCO = SQL / "locus_dw.db"
 
 FONTES = [
-    ("stg_municipios", RAIZ / "data/processed/municipios_tratado.csv", ","),
-    ("stg_cras", RAIZ / "data/raw/CRAS_BRASIL.csv", ","),
-    ("stg_creas", RAIZ / "data/raw/CREAS_BRASIL.csv", ","),
-    ("stg_doacoes", RAIZ / "data/raw/Donatarios2025.csv", ";"),
+    ("stg_municipios", STAGING / "stg_municipios.csv", ","),
+    ("stg_cras", STAGING / "stg_cras.csv", ","),
+    ("stg_creas", STAGING / "stg_creas.csv", ","),
+    ("stg_doacoes", STAGING / "stg_doacoes.csv", ","),
 ]
 
 # (descrição, tabela de origem, tabela de destino)
@@ -60,6 +65,7 @@ def conferir_carga(conexao):
 
 
 def main():
+    gerar_staging()
     BANCO.unlink(missing_ok=True)
     conexao = sqlite3.connect(BANCO)
     try:
