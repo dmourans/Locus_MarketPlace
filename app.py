@@ -26,11 +26,19 @@ RAIZ = Path(__file__).resolve().parent
 ARQUIVO_OLAP = RAIZ / "sql" / "05_olap_operacoes.sql"
 
 def normalize_city(name):
+    """Gera uma chave sem acentos apenas para cruzamento entre bases."""
     if pd.isna(name):
         return name
     name = str(name).upper().strip()
     name = unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore').decode('ASCII')
-    return name
+    return re.sub(r"\s+", " ", name)
+
+
+def formatar_nome_municipio(nome):
+    """Padroniza a apresentação do município sem remover acentos."""
+    if pd.isna(nome):
+        return nome
+    return re.sub(r"\s+", " ", str(nome).strip()).title()
 
 def convert_decimal(v):
     if pd.isna(v):
@@ -171,16 +179,80 @@ def formatar_numero_br(valor):
     return formatado.replace(",", "X").replace(".", ",").replace("X", ".")
 
 def formatar_numero_compacto(valor):
-    """Abrevia números grandes para caber nos rótulos dos gráficos."""
+    """Abrevia números grandes para cards e rótulos, no padrão brasileiro."""
     if pd.isna(valor):
         return ""
     numero = float(valor)
     absoluto = abs(numero)
+    if absoluto >= 1_000_000_000:
+        return f"{numero / 1_000_000_000:.1f}".replace(".", ",") + " bi"
     if absoluto >= 1_000_000:
         return f"{numero / 1_000_000:.1f}".replace(".", ",") + " mi"
     if absoluto >= 1_000:
         return f"{numero / 1_000:.1f}".replace(".", ",") + " mil"
     return formatar_numero_br(numero)
+
+
+def formatar_dataframe_br(df):
+    """Exibe números completos com separadores brasileiros, sem alterar os dados."""
+    formatos = {
+        coluna: formatar_numero_br
+        for coluna in df.columns
+        if pd.api.types.is_numeric_dtype(df[coluna])
+    }
+    return df.style.format(formatos, na_rep="—")
+
+
+def aplicar_nomes_municipios(df, mapa_nomes):
+    """Aplica nomes oficiais com acentos às colunas de município de um resultado."""
+    df = df.copy()
+    colunas_municipio = ("municipio", "município", "municipio_nome", "municipio_exibicao")
+    for coluna in colunas_municipio:
+        if coluna in df.columns:
+            df[coluna] = df[coluna].apply(
+                lambda valor: (
+                    mapa_nomes.get(normalize_city(valor), formatar_nome_municipio(valor))
+                    if pd.notna(valor) else valor
+                )
+            )
+    return df
+
+
+def formatar_eixo_br(ax, eixo="y", compacto=False):
+    """Aplica formatação numérica brasileira a um eixo do Matplotlib."""
+    formatador = formatar_numero_compacto if compacto else formatar_numero_br
+    eixo_obj = ax.xaxis if eixo == "x" else ax.yaxis
+    eixo_obj.set_major_formatter(FuncFormatter(lambda valor, _: formatador(valor)))
+
+
+def rotular_barras(ax, barras, horizontal=False, compacto=True, tamanho=8):
+    """Adiciona valores sobre barras sem alterar os valores usados nos cálculos."""
+    formatador = formatar_numero_compacto if compacto else formatar_numero_br
+    for barra in barras:
+        valor = barra.get_width() if horizontal else barra.get_height()
+        if pd.isna(valor):
+            continue
+        rotulo = formatador(valor)
+        if horizontal:
+            ax.annotate(
+                rotulo,
+                xy=(valor, barra.get_y() + barra.get_height() / 2),
+                xytext=(4 if valor >= 0 else -4, 0),
+                textcoords="offset points",
+                ha="left" if valor >= 0 else "right",
+                va="center",
+                fontsize=tamanho,
+            )
+        else:
+            ax.annotate(
+                rotulo,
+                xy=(barra.get_x() + barra.get_width() / 2, valor),
+                xytext=(0, 3 if valor >= 0 else -3),
+                textcoords="offset points",
+                ha="center",
+                va="bottom" if valor >= 0 else "top",
+                fontsize=tamanho,
+            )
 
 def renderizar_pagina_olap(status_dw, erro_dw):
     st.title("🧠 Data Warehouse e OLAP")
@@ -236,10 +308,10 @@ def renderizar_pagina_olap(status_dw, erro_dw):
     total_municipios = int(resumo.loc[0, "municipios"] or 0)
     total_grupos = int(grupos.loc[0, "total"] or 0)
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Registros de doação", formatar_inteiro(total_registros))
-    col2.metric("Itens doados", formatar_inteiro(total_itens))
-    col3.metric("Municípios com doações", formatar_inteiro(total_municipios))
-    col4.metric("Grupos de itens", formatar_inteiro(total_grupos))
+    col1.metric("Registros de doação", formatar_numero_compacto(total_registros))
+    col2.metric("Itens doados", formatar_numero_compacto(total_itens))
+    col3.metric("Municípios com doações", formatar_numero_compacto(total_municipios))
+    col4.metric("Grupos de itens", formatar_numero_compacto(total_grupos))
     st.caption(
         "Os indicadores são calculados a partir das tabelas fato e dimensão do "
         "Data Warehouse. 'Itens doados' representa a soma da quantidade registrada."
@@ -299,6 +371,7 @@ def renderizar_pagina_olap(status_dw, erro_dw):
     st.write(informacoes.get(operacao, "Resultado da consulta OLAP."))
     try:
         resultado = consultar_data_warehouse(consultas[operacao]["sql"])
+        resultado = aplicar_nomes_municipios(resultado, mapa_nomes_municipios)
     except Exception as erro:
         st.error(f"Erro ao executar a consulta {operacao}: {erro}")
         with st.expander("Ver consulta SQL"):
@@ -354,7 +427,7 @@ def renderizar_pagina_olap(status_dw, erro_dw):
                 tabela_hierarquia["total"] = tabela_hierarquia["total"].map(
                     formatar_numero_br
                 )
-            st.dataframe(tabela_hierarquia, use_container_width=True)
+            st.dataframe(formatar_dataframe_br(tabela_hierarquia), use_container_width=True)
         elif operacao == 2:
             grupos_disponiveis = sorted(resultado["grupo_item"].dropna().unique().tolist())
             grupo_selecionado = st.selectbox(
@@ -363,29 +436,79 @@ def renderizar_pagina_olap(status_dw, erro_dw):
             detalhamento = resultado[resultado["grupo_item"] == grupo_selecionado].copy()
             principais = detalhamento.nlargest(15, "total").sort_values("total")
             st.markdown(f"**15 itens com maior quantidade no grupo {grupo_selecionado}**")
-            st.bar_chart(principais.set_index("item")["total"], use_container_width=True)
-            st.dataframe(detalhamento.sort_values("total", ascending=False), use_container_width=True)
+            fig, ax = plt.subplots(figsize=(12, 6))
+            barras = ax.barh(principais["item"].astype(str), principais["total"])
+            formatar_eixo_br(ax, "x", compacto=True)
+            rotular_barras(ax, barras, horizontal=True, compacto=True, tamanho=8)
+            ax.set_xlabel("Quantidade de itens")
+            ax.set_ylabel("Item")
+            ax.grid(axis="x", alpha=0.25)
+            ax.set_axisbelow(True)
+            ax.margins(x=0.18)
+            fig.tight_layout()
+            st.pyplot(fig, use_container_width=True)
+            plt.close(fig)
+            st.dataframe(formatar_dataframe_br(detalhamento.sort_values("total", ascending=False)), use_container_width=True)
         elif operacao == 3:
             resultado = resultado.sort_values("mes")
             st.markdown("**Quantidade mensal de itens do grupo Alimentação**")
-            st.line_chart(resultado.set_index("nome_mes")["total"], use_container_width=True)
-            st.dataframe(resultado, use_container_width=True)
+            fig, ax = plt.subplots(figsize=(12, 5))
+            ax.plot(resultado["nome_mes"].astype(str), resultado["total"], marker="o", linewidth=2)
+            formatar_eixo_br(ax, "y", compacto=True)
+            for x_pos, valor in enumerate(resultado["total"]):
+                ax.annotate(
+                    formatar_numero_compacto(valor),
+                    (x_pos, valor),
+                    textcoords="offset points",
+                    xytext=(0, 6),
+                    ha="center",
+                    fontsize=8,
+                )
+            ax.set_ylabel("Quantidade de itens")
+            ax.tick_params(axis="x", rotation=35)
+            ax.grid(axis="y", alpha=0.25)
+            ax.set_axisbelow(True)
+            fig.tight_layout()
+            st.pyplot(fig, use_container_width=True)
+            plt.close(fig)
+            st.dataframe(formatar_dataframe_br(resultado), use_container_width=True)
         elif operacao == 4:
             matriz = resultado.pivot(
                 index="trimestre", columns="grupo_item", values="total"
             ).fillna(0)
             matriz.index = [f"{int(x)}º trimestre" for x in matriz.index]
             st.markdown("**Comparação por grupo e trimestre**")
-            st.bar_chart(matriz, use_container_width=True)
-            st.dataframe(resultado, use_container_width=True)
+            fig, ax = plt.subplots(figsize=(12, 6))
+            matriz.plot(kind="bar", ax=ax)
+            formatar_eixo_br(ax, "y", compacto=True)
+            rotular_barras(ax, ax.patches, horizontal=False, compacto=True, tamanho=8)
+            ax.set_xlabel("Trimestre")
+            ax.set_ylabel("Quantidade de itens")
+            ax.tick_params(axis="x", rotation=0)
+            ax.legend(title="Grupo de item", bbox_to_anchor=(1.02, 1), loc="upper left")
+            ax.grid(axis="y", alpha=0.25)
+            ax.set_axisbelow(True)
+            fig.tight_layout()
+            st.pyplot(fig, use_container_width=True)
+            plt.close(fig)
+            st.dataframe(formatar_dataframe_br(resultado), use_container_width=True)
         elif operacao == 5:
             colunas_trimestre = ["tri_1", "tri_2", "tri_3", "tri_4"]
             st.markdown("**Comparação trimestral por grupo de item**")
-            st.bar_chart(
-                resultado.set_index("grupo_item")[colunas_trimestre],
-                use_container_width=True,
-            )
-            st.dataframe(resultado, use_container_width=True)
+            fig, ax = plt.subplots(figsize=(12, 6))
+            resultado.set_index("grupo_item")[colunas_trimestre].plot(kind="bar", ax=ax)
+            formatar_eixo_br(ax, "y", compacto=True)
+            rotular_barras(ax, ax.patches, horizontal=False, compacto=True, tamanho=7)
+            ax.set_xlabel("Grupo de item")
+            ax.set_ylabel("Quantidade de itens")
+            ax.tick_params(axis="x", rotation=35)
+            ax.legend(title="Trimestre")
+            ax.grid(axis="y", alpha=0.25)
+            ax.set_axisbelow(True)
+            fig.tight_layout()
+            st.pyplot(fig, use_container_width=True)
+            plt.close(fig)
+            st.dataframe(formatar_dataframe_br(resultado), use_container_width=True)
         elif operacao == 6:
             matriz = resultado.pivot(
                 index="grupo_item", columns="trimestre", values="total"
@@ -394,15 +517,23 @@ def renderizar_pagina_olap(status_dw, erro_dw):
                 columns={"1": "1º tri.", "2": "2º tri.", "3": "3º tri.", "4": "4º tri.", "todos": "Total"}
             )
             st.markdown("**Matriz de combinações e totais**")
-            st.dataframe(matriz, use_container_width=True)
+            st.dataframe(formatar_dataframe_br(matriz), use_container_width=True)
         elif operacao == 7:
             st.markdown("**Itens doados por unidade assistencial**")
             grafico = resultado.sort_values("itens_por_unidade", ascending=True)
-            st.bar_chart(
-                grafico.set_index("municipio")["itens_por_unidade"],
-                use_container_width=True,
-            )
-            st.dataframe(resultado, use_container_width=True)
+            fig, ax = plt.subplots(figsize=(12, 6))
+            barras = ax.barh(grafico["municipio"].astype(str), grafico["itens_por_unidade"])
+            formatar_eixo_br(ax, "x", compacto=False)
+            rotular_barras(ax, barras, horizontal=True, compacto=False, tamanho=8)
+            ax.set_xlabel("Itens por unidade")
+            ax.set_ylabel("Município")
+            ax.grid(axis="x", alpha=0.25)
+            ax.set_axisbelow(True)
+            ax.margins(x=0.15)
+            fig.tight_layout()
+            st.pyplot(fig, use_container_width=True)
+            plt.close(fig)
+            st.dataframe(formatar_dataframe_br(resultado), use_container_width=True)
             st.caption(
                 "A razão compara itens doados com o total de unidades CRAS/CREAS "
                 "identificadas na consulta para cada município."
@@ -410,14 +541,26 @@ def renderizar_pagina_olap(status_dw, erro_dw):
         elif operacao == 8:
             st.markdown("**Dez municípios com maior quantidade de itens recebidos**")
             grafico = resultado.sort_values("total", ascending=True)
-            st.bar_chart(grafico.set_index("municipio")["total"], use_container_width=True)
-            st.dataframe(resultado, use_container_width=True)
+            fig, ax = plt.subplots(figsize=(12, 6))
+            barras = ax.barh(grafico["municipio"].astype(str), grafico["total"])
+            formatar_eixo_br(ax, "x", compacto=True)
+            rotular_barras(ax, barras, horizontal=True, compacto=True, tamanho=8)
+            ax.set_xlabel("Quantidade de itens recebidos")
+            ax.set_ylabel("Município")
+            ax.grid(axis="x", alpha=0.25)
+            ax.set_axisbelow(True)
+            ax.margins(x=0.18)
+            fig.tight_layout()
+            st.pyplot(fig, use_container_width=True)
+            plt.close(fig)
+            st.dataframe(formatar_dataframe_br(resultado), use_container_width=True)
         elif operacao == 9:
             st.markdown("**Participação percentual e acumulada por grupo**")
             fig, eixo = plt.subplots(figsize=(11, 5))
             posicoes = np.arange(len(resultado))
             eixo.bar(posicoes, resultado["total"], label="Quantidade de itens")
             eixo.set_ylabel("Quantidade de itens")
+            formatar_eixo_br(eixo, "y", compacto=True)
             eixo.set_xticks(posicoes)
             eixo.set_xticklabels(resultado["grupo_item"], rotation=35, ha="right")
             eixo2 = eixo.twinx()
@@ -429,7 +572,9 @@ def renderizar_pagina_olap(status_dw, erro_dw):
                 label="Participação acumulada (%)",
             )
             eixo2.set_ylabel("Participação acumulada (%)")
+            eixo2.yaxis.set_major_formatter(FuncFormatter(lambda valor, _: formatar_numero_br(valor) + "%"))
             eixo2.set_ylim(0, 105)
+            rotular_barras(eixo, eixo.patches, horizontal=False, compacto=True, tamanho=8)
             eixo.set_title("Distribuição e participação acumulada")
             linhas1, rotulos1 = eixo.get_legend_handles_labels()
             linhas2, rotulos2 = eixo2.get_legend_handles_labels()
@@ -437,7 +582,7 @@ def renderizar_pagina_olap(status_dw, erro_dw):
             fig.tight_layout()
             st.pyplot(fig)
             plt.close(fig)
-            st.dataframe(resultado, use_container_width=True)
+            st.dataframe(formatar_dataframe_br(resultado), use_container_width=True)
         elif operacao == 10:
             ordem_faixas = ["0-17", "18-29", "30-44", "45-59", "60+"]
             resultado["faixa_etaria"] = pd.Categorical(
@@ -448,9 +593,21 @@ def renderizar_pagina_olap(status_dw, erro_dw):
                 index="faixa_etaria", columns="primeira_doacao", values="itens"
             ).fillna(0)
             st.markdown("**Quantidade de itens por faixa etária e primeira doação**")
-            st.bar_chart(matriz_itens, use_container_width=True)
+            fig, ax = plt.subplots(figsize=(11, 5))
+            matriz_itens.plot(kind="bar", ax=ax)
+            formatar_eixo_br(ax, "y", compacto=True)
+            rotular_barras(ax, ax.patches, horizontal=False, compacto=True, tamanho=8)
+            ax.set_xlabel("Faixa etária")
+            ax.set_ylabel("Quantidade de itens")
+            ax.tick_params(axis="x", rotation=0)
+            ax.legend(title="Primeira doação")
+            ax.grid(axis="y", alpha=0.25)
+            ax.set_axisbelow(True)
+            fig.tight_layout()
+            st.pyplot(fig, use_container_width=True)
+            plt.close(fig)
             st.markdown("**Detalhamento do perfil**")
-            st.dataframe(resultado, use_container_width=True)
+            st.dataframe(formatar_dataframe_br(resultado), use_container_width=True)
             st.caption(
                 "A coluna 'doações' representa a quantidade de registros na tabela fato, "
                 "não uma contagem de pessoas únicas. A dimensão doador agrupa perfis "
@@ -522,13 +679,35 @@ def carregar_dados():
         .fillna(0)
         .astype(int)
     )
-    # Recupera a grafia oficial (incluindo ç, ã, õ, é etc.) sem alterar a chave dos joins.
+    # Nomes informados nas bases originais, usados como alternativa quando
+    # um município não for encontrado na lista oficial do IBGE.
+    nomes_originais = pd.concat(
+        [
+            ongs_sp['municipio_nome'],
+            cras_sp['cidade'],
+            creas_sp['cidade'],
+            doacoes2024_sp['municipio'],
+        ],
+        ignore_index=True,
+    ).dropna().astype(str).str.strip().drop_duplicates()
+    mapa_nomes_origem = {
+        normalize_city(nome): nome
+        for nome in nomes_originais
+        if normalize_city(nome)
+    }
+    # A grafia oficial tem prioridade sobre as grafias das bases de origem.
+    mapa_nomes_exibicao = {**mapa_nomes_origem, **mapa_nomes_municipios}
     df_municipios['municipio_exibicao'] = (
         df_municipios['municipio_norm']
-        .map(mapa_nomes_municipios)
+        .map(mapa_nomes_exibicao)
         .fillna(df_municipios['municipio_norm'])
+        .apply(formatar_nome_municipio)
     )
-    return df_municipios, ongs_sp, municipios
+    mapa_nomes_exibicao = {
+        chave: formatar_nome_municipio(nome)
+        for chave, nome in mapa_nomes_exibicao.items()
+    }
+    return df_municipios, ongs_sp, municipios, mapa_nomes_exibicao
 # A aplicação tenta preparar o DW na primeira abertura. Se houver falha,
 # as três páginas existentes continuam disponíveis; a página OLAP informa o erro.
 try:
@@ -537,7 +716,7 @@ try:
 except Exception as erro:
     status_dw = None
     erro_dw = erro
-df_municipios, ongs_sp, municipios = carregar_dados()
+df_municipios, ongs_sp, municipios, mapa_nomes_municipios = carregar_dados()
 
 # SIDEBAR
 st.sidebar.title("🌱 Locus MarketPlace")
@@ -557,20 +736,22 @@ if pagina == "🏠 Visão Geral":
     st.markdown("#### Conectando Doadores, Centros de Doação e Pessoas Carentes")
     st.divider()
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total de Municípios", len(df_municipios))
-    col2.metric("Total de ONGs", int(df_municipios['num_ongs'].sum()))
-    col3.metric("Total de CRAS", int(df_municipios['num_cras'].sum()))
-    col4.metric("Total de CREAS", int(df_municipios['num_creas'].sum()))
+    col1.metric("Total de Municípios", formatar_numero_compacto(len(df_municipios)))
+    col2.metric("Total de ONGs", formatar_numero_compacto(int(df_municipios['num_ongs'].sum())))
+    col3.metric("Total de CRAS", formatar_numero_compacto(int(df_municipios['num_cras'].sum())))
+    col4.metric("Total de CREAS", formatar_numero_compacto(int(df_municipios['num_creas'].sum())))
     st.divider()
     st.subheader("📋 Tabela de Municípios")
     st.dataframe(
-        df_municipios.rename(columns={
-            'municipio_exibicao': 'Município',
-            'num_ongs': 'ONGs',
-            'num_cras': 'CRAS',
-            'num_creas': 'CREAS',
-            'num_doacoes': 'Doações 2024',
-        }).drop(columns=['municipio_norm']),
+        formatar_dataframe_br(
+            df_municipios.rename(columns={
+                'municipio_exibicao': 'Município',
+                'num_ongs': 'ONGs',
+                'num_cras': 'CRAS',
+                'num_creas': 'CREAS',
+                'num_doacoes': 'Doações 2024',
+            }).drop(columns=['municipio_norm'])
+        ),
         use_container_width=True,
     )
 
@@ -583,6 +764,9 @@ elif pagina == "📊 Análise Descritiva":
     top_ongs = df_municipios.nlargest(top_n, 'num_ongs')
     fig, ax = plt.subplots(figsize=(10, 5))
     sns.barplot(data=top_ongs, y='municipio_exibicao', x='num_ongs', palette='viridis', ax=ax)
+    formatar_eixo_br(ax, "x", compacto=True)
+    rotular_barras(ax, ax.patches, horizontal=True, compacto=True, tamanho=8)
+    ax.margins(x=0.16)
     ax.set_xlabel('Número de ONGs')
     ax.set_ylabel('Município')
     st.pyplot(fig)
@@ -593,9 +777,12 @@ elif pagina == "📊 Análise Descritiva":
     fig, ax = plt.subplots(figsize=(12, 6))
     x = np.arange(len(top10))
     width = 0.25
-    ax.bar(x - width, top10['num_ongs'], width, label='ONGs', color='#2ecc71')
-    ax.bar(x, top10['num_cras'], width, label='CRAS', color='#3498db')
-    ax.bar(x + width, top10['num_creas'], width, label='CREAS', color='#e74c3c')
+    barras_ongs = ax.bar(x - width, top10['num_ongs'], width, label='ONGs', color='#2ecc71')
+    barras_cras = ax.bar(x, top10['num_cras'], width, label='CRAS', color='#3498db')
+    barras_creas = ax.bar(x + width, top10['num_creas'], width, label='CREAS', color='#e74c3c')
+    formatar_eixo_br(ax, "y", compacto=True)
+    rotular_barras(ax, list(barras_ongs) + list(barras_cras) + list(barras_creas), horizontal=False, compacto=True, tamanho=7)
+    ax.margins(y=0.18)
     ax.set_xticks(x)
     ax.set_xticklabels(top10['municipio_exibicao'], rotation=45, ha='right')
     ax.legend()
@@ -609,6 +796,9 @@ elif pagina == "📊 Análise Descritiva":
     top_vulneraveis = df_municipios.nlargest(top_n, 'doacoes_por_ong')
     fig, ax = plt.subplots(figsize=(10, 5))
     sns.barplot(data=top_vulneraveis, y='municipio_exibicao', x='doacoes_por_ong', palette='coolwarm', ax=ax)
+    formatar_eixo_br(ax, "x", compacto=False)
+    rotular_barras(ax, ax.patches, horizontal=True, compacto=False, tamanho=8)
+    ax.margins(x=0.16)
     ax.set_xlabel('Doações por ONG (razão)')
     ax.set_ylabel('Município')
     st.pyplot(fig)
@@ -618,20 +808,24 @@ elif pagina == "📊 Análise Descritiva":
 elif pagina == "🗺️ Municípios por DDD":
     st.title("🗺️ Municípios por DDD — São Paulo")
     st.divider()
-    df_sp = municipios[municipios['codigo_uf'] == 35]
+    df_sp = municipios[municipios['codigo_uf'] == 35].copy()
+    df_sp['municipio'] = df_sp['municipio'].apply(formatar_nome_municipio)
     ddd_sp = df_sp.groupby('ddd')['municipio'].count().reset_index()
     ddd_sp.columns = ['DDD', 'Municípios']
     col1, col2 = st.columns([2, 1])
     with col1:
         fig, ax = plt.subplots(figsize=(10, 6))
         sns.barplot(data=ddd_sp, x='DDD', y='Municípios', ax=ax)
+        formatar_eixo_br(ax, "y", compacto=False)
+        rotular_barras(ax, ax.patches, horizontal=False, compacto=False, tamanho=8)
+        ax.margins(y=0.12)
         ax.set_title('Quantidade de Municípios por DDD no Estado de São Paulo')
         plt.tight_layout()
         st.pyplot(fig)
         plt.close(fig)
     with col2:
         st.subheader("📋 Tabela")
-        st.dataframe(ddd_sp, use_container_width=True)
+        st.dataframe(formatar_dataframe_br(ddd_sp), use_container_width=True)
 
 # PÁGINA 4: DATA WAREHOUSE E OLAP (COMMIT 7)
 elif pagina == "🧠 Data Warehouse e OLAP":
