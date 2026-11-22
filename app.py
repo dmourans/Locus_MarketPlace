@@ -1,5 +1,6 @@
 import sqlite3
 import re
+import difflib
 from pathlib import Path
 import streamlit as st
 import pandas as pd
@@ -32,6 +33,64 @@ def normalize_city(name):
     name = str(name).upper().strip()
     name = unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore').decode('ASCII')
     return re.sub(r"\s+", " ", name)
+
+
+def corrigir_codificacao_texto(valor):
+    """Reverte casos comuns de texto UTF-8 interpretado como Latin-1."""
+    if pd.isna(valor):
+        return valor
+    texto = str(valor).strip()
+    for _ in range(2):
+        if not any(marca in texto for marca in ("Ã", "Â", "ï¿½")):
+            break
+        try:
+            corrigido = texto.encode("latin-1").decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            break
+        if corrigido == texto:
+            break
+        texto = corrigido
+    return texto
+
+
+def resolver_nome_municipio(valor, mapa_oficial):
+    """Resolve grafias corrompidas usando a lista oficial de municípios como referência."""
+    if pd.isna(valor):
+        return valor
+
+    original = str(valor).strip()
+    corrigido = corrigir_codificacao_texto(original)
+    chave = normalize_city(corrigido)
+    if chave in mapa_oficial:
+        return mapa_oficial[chave]
+
+    # O caractere de substituição (�) indica que um byte foi perdido na leitura.
+    # Nesse caso, remove-se apenas o marcador e procura-se uma correspondência
+    # única e muito próxima na lista oficial, sem alterar nomes normais.
+    tem_corrupcao = any(marca in original for marca in ("Ã", "Â", "ï¿½", "�"))
+    if tem_corrupcao:
+        chave_limpa = normalize_city(corrigido.replace("\ufffd", ""))
+        if chave_limpa in mapa_oficial:
+            return mapa_oficial[chave_limpa]
+
+        candidatos = list(dict.fromkeys(mapa_oficial.values()))
+        pontuacoes = sorted(
+            [
+                (
+                    difflib.SequenceMatcher(None, chave_limpa, normalize_city(nome)).ratio(),
+                    nome,
+                )
+                for nome in candidatos
+            ],
+            reverse=True,
+        )
+        if pontuacoes:
+            melhor_nota, melhor_nome = pontuacoes[0]
+            segunda_nota = pontuacoes[1][0] if len(pontuacoes) > 1 else 0
+            if melhor_nota >= 0.90 and (melhor_nota - segunda_nota) >= 0.02:
+                return melhor_nome
+
+    return corrigido
 
 
 def convert_decimal(v):
@@ -204,10 +263,7 @@ def aplicar_nomes_municipios(df, mapa_nomes):
     for coluna in colunas_municipio:
         if coluna in df.columns:
             df[coluna] = df[coluna].apply(
-                lambda valor: (
-                    mapa_nomes.get(normalize_city(valor), valor)
-                    if pd.notna(valor) else valor
-                )
+                lambda valor: resolver_nome_municipio(valor, mapa_nomes)
             )
     return df
 
@@ -684,13 +740,15 @@ def carregar_dados():
         ],
         ignore_index=True,
     ).dropna().astype(str).str.strip().drop_duplicates()
-    mapa_nomes_origem = {
-        normalize_city(nome): nome
-        for nome in nomes_originais
-        if normalize_city(nome)
-    }
-    # A grafia oficial tem prioridade sobre as grafias das bases de origem.
-    mapa_nomes_exibicao = {**mapa_nomes_origem, **mapa_nomes_municipios}
+    # A lista oficial do IBGE é a referência de exibição. As grafias das bases
+    # originais são cadastradas como aliases, inclusive quando vieram corrompidas.
+    mapa_nomes_exibicao = dict(mapa_nomes_municipios)
+    for nome in nomes_originais:
+        chave_origem = normalize_city(nome)
+        if chave_origem:
+            mapa_nomes_exibicao[chave_origem] = resolver_nome_municipio(
+                nome, mapa_nomes_municipios
+            )
     # Exibir a grafia exatamente como veio das bases, sem alterar maiúsculas,
     # minúsculas ou acentuação. A normalização continua restrita aos cruzamentos.
     df_municipios['municipio_exibicao'] = (
