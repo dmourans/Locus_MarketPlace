@@ -34,12 +34,6 @@ def normalize_city(name):
     return re.sub(r"\s+", " ", name)
 
 
-def formatar_nome_municipio(nome):
-    """Padroniza a apresentação do município sem remover acentos."""
-    if pd.isna(nome):
-        return nome
-    return re.sub(r"\s+", " ", str(nome).strip()).title()
-
 def convert_decimal(v):
     if pd.isna(v):
         return np.nan
@@ -211,7 +205,7 @@ def aplicar_nomes_municipios(df, mapa_nomes):
         if coluna in df.columns:
             df[coluna] = df[coluna].apply(
                 lambda valor: (
-                    mapa_nomes.get(normalize_city(valor), formatar_nome_municipio(valor))
+                    mapa_nomes.get(normalize_city(valor), valor)
                     if pd.notna(valor) else valor
                 )
             )
@@ -697,16 +691,13 @@ def carregar_dados():
     }
     # A grafia oficial tem prioridade sobre as grafias das bases de origem.
     mapa_nomes_exibicao = {**mapa_nomes_origem, **mapa_nomes_municipios}
+    # Exibir a grafia exatamente como veio das bases, sem alterar maiúsculas,
+    # minúsculas ou acentuação. A normalização continua restrita aos cruzamentos.
     df_municipios['municipio_exibicao'] = (
         df_municipios['municipio_norm']
         .map(mapa_nomes_exibicao)
         .fillna(df_municipios['municipio_norm'])
-        .apply(formatar_nome_municipio)
     )
-    mapa_nomes_exibicao = {
-        chave: formatar_nome_municipio(nome)
-        for chave, nome in mapa_nomes_exibicao.items()
-    }
     return df_municipios, ongs_sp, municipios, mapa_nomes_exibicao
 # A aplicação tenta preparar o DW na primeira abertura. Se houver falha,
 # as três páginas existentes continuam disponíveis; a página OLAP informa o erro.
@@ -809,7 +800,6 @@ elif pagina == "🗺️ Municípios por DDD":
     st.title("🗺️ Municípios por DDD — São Paulo")
     st.divider()
     df_sp = municipios[municipios['codigo_uf'] == 35].copy()
-    df_sp['municipio'] = df_sp['municipio'].apply(formatar_nome_municipio)
     ddd_sp = df_sp.groupby('ddd')['municipio'].count().reset_index()
     ddd_sp.columns = ['DDD', 'Municípios']
     col1, col2 = st.columns([2, 1])
