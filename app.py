@@ -246,12 +246,13 @@ def formatar_numero_compacto(valor):
     return formatar_numero_br(numero)
 
 
-def formatar_dataframe_br(df):
+def formatar_dataframe_br(df, ignorar_colunas=()):
     """Exibe números completos com separadores brasileiros, sem alterar os dados."""
+    ignorar_colunas = set(ignorar_colunas)
     formatos = {
         coluna: formatar_numero_br
         for coluna in df.columns
-        if pd.api.types.is_numeric_dtype(df[coluna])
+        if coluna not in ignorar_colunas and pd.api.types.is_numeric_dtype(df[coluna])
     }
     return df.style.format(formatos, na_rep="—")
 
@@ -441,14 +442,23 @@ def renderizar_pagina_olap(status_dw, erro_dw):
             }
             mensal["ordem_mes"] = mensal["mes"].str.lower().map(ordem_meses)
             mensal = mensal.sort_values(["ano", "ordem_mes"])
-            mensal["período"] = mensal["mes"].str.capitalize() + " / " + mensal["ano"].astype(str)
+            abreviacoes_meses = {
+                "janeiro": "jan", "fevereiro": "fev", "março": "mar",
+                "abril": "abr", "maio": "mai", "junho": "jun",
+                "julho": "jul", "agosto": "ago", "setembro": "set",
+                "outubro": "out", "novembro": "nov", "dezembro": "dez",
+            }
+            mensal["periodo"] = (
+                mensal["mes"].str.lower().map(abreviacoes_meses)
+                + "/" + mensal["ano"].astype(str)
+            )
             st.markdown("**Evolução mensal das doações**")
             if not mensal.empty:
                 fig, ax = plt.subplots(figsize=(12, 5))
                 posicoes = np.arange(len(mensal))
                 barras = ax.bar(posicoes, mensal["total"])
                 ax.set_xticks(posicoes)
-                ax.set_xticklabels(mensal["período"], rotation=35, ha="right")
+                ax.set_xticklabels(mensal["periodo"], rotation=35, ha="right")
                 ax.set_ylabel("Quantidade de itens")
                 ax.yaxis.set_major_formatter(
                     FuncFormatter(lambda valor, _: formatar_numero_br(valor))
@@ -472,12 +482,15 @@ def renderizar_pagina_olap(status_dw, erro_dw):
                 st.pyplot(fig, use_container_width=True)
                 plt.close(fig)
             st.markdown("**Hierarquia e totais**")
-            tabela_hierarquia = resultado.copy()
-            if "total" in tabela_hierarquia.columns:
-                tabela_hierarquia["total"] = tabela_hierarquia["total"].map(
-                    formatar_numero_br
-                )
-            st.dataframe(formatar_dataframe_br(tabela_hierarquia), use_container_width=True)
+            # Mantém os meses e o total anual, mas remove as linhas de subtotal trimestral.
+            tabela_hierarquia = resultado[
+                resultado["mes"].str.lower() != "subtotal trimestre"
+            ].copy()
+            # Ano é uma identificação temporal, não uma quantidade: exibe 2025, sem separador.
+            st.dataframe(
+                formatar_dataframe_br(tabela_hierarquia, ignorar_colunas=("ano",)),
+                use_container_width=True,
+            )
         elif operacao == 2:
             grupos_disponiveis = sorted(resultado["grupo_item"].dropna().unique().tolist())
             grupo_selecionado = st.selectbox(
@@ -498,7 +511,21 @@ def renderizar_pagina_olap(status_dw, erro_dw):
             fig.tight_layout()
             st.pyplot(fig, use_container_width=True)
             plt.close(fig)
-            st.dataframe(formatar_dataframe_br(detalhamento.sort_values("total", ascending=False)), use_container_width=True)
+            detalhamento_exibicao = detalhamento.sort_values(
+                "total", ascending=False
+            ).rename(columns={"pct_no_grupo": "Participação no grupo (%)"})
+            tabela_drilldown = formatar_dataframe_br(detalhamento_exibicao)
+            if "Participação no grupo (%)" in detalhamento_exibicao.columns:
+                tabela_drilldown = tabela_drilldown.format(
+                    {
+                        "Participação no grupo (%)": lambda valor: (
+                            "—" if pd.isna(valor)
+                            else f"{float(valor):.1f}%".replace(".", ",")
+                        )
+                    },
+                    na_rep="—",
+                )
+            st.dataframe(tabela_drilldown, use_container_width=True)
         elif operacao == 3:
             resultado = resultado.sort_values("mes")
             st.markdown("**Quantidade mensal de itens do grupo Alimentação**")
