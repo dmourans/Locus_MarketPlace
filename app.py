@@ -38,12 +38,32 @@ def convert_decimal(v):
     return float(str(v).replace(',', '.'))
 
 def extrair_lat_lon(geo):
+    """Converte o campo georef_location em latitude e longitude.
+
+    Os CSVs de CRAS/CREAS trazem uma barra invertida antes da vírgula
+    que separa as coordenadas. Essa barra é removida
+    antes da conversão para float. Valores ausentes ou inválidos viram NaN,
+    sem interromper o carregamento de toda a aplicação.
+    """
     if pd.isna(geo):
         return pd.Series([np.nan, np.nan])
-    partes = geo.replace('\\\\', '').split(',')
-    if len(partes) == 2:
-        return pd.Series([float(partes[0]), float(partes[1])])
-    return pd.Series([np.nan, np.nan])
+
+    texto = str(geo).strip().replace("\\", "")
+    partes = texto.split(",")
+    if len(partes) != 2:
+        return pd.Series([np.nan, np.nan])
+
+    try:
+        latitude = float(partes[0].strip().strip("()[]"))
+        longitude = float(partes[1].strip().strip("()[]"))
+    except (TypeError, ValueError):
+        return pd.Series([np.nan, np.nan])
+
+    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+        return pd.Series([np.nan, np.nan])
+
+    return pd.Series([latitude, longitude])
+
 # -----------------------------------------------------------------------------
 # Data Warehouse: criação automática somente quando necessário
 # -----------------------------------------------------------------------------
