@@ -19,7 +19,38 @@ O **Locus MarketPlace** é uma iniciativa de análise e visualização de dados 
 
 ## 📸 Demonstração
 
-*(Substitua este texto por capturas de tela do seu Dashboard em funcionamento. Exemplo: `![Print do Painel](link-da-imagem.png)`)*
+### 🎬 Vídeo de demonstração
+
+> 🚧 Em produção — o vídeo será disponibilizado neste repositório, em `docs/video/`.
+
+Roteiro do vídeo:
+
+1. **Problema e objetivo** — conectar doadores, centros de doação (CRAS, CREAS e ONGs) e pessoas em situação de vulnerabilidade.
+2. **Modelo dimensional** — constelação de fatos com 2 fatos e 6 dimensões ([`docs/modelo_dimensional.md`](docs/modelo_dimensional.md)).
+3. **ETL** — execução de `python etl/build_dw.py` e reconciliação da carga.
+4. **Operações OLAP** — consultas de [`sql/05_olap_operacoes.sql`](sql/05_olap_operacoes.sql).
+5. **Dashboard na nuvem** — navegação no painel publicado no Streamlit.
+6. **Repositório** — estrutura do projeto e contribuições dos integrantes.
+
+### 📊 Dashboard
+
+Painel interativo publicado em [locusmarketplace.streamlit.app](https://locusmarketplace.streamlit.app/).
+
+### 🧮 Consultas OLAP sobre o Data Warehouse
+
+**Roll-up** — itens doados por mês, com subtotal por trimestre e total do ano:
+
+![Roll-up: mês, trimestre e ano](docs/evidencias_olap/01_rollup.png)
+
+**Drill-across** — doações × rede CRAS/CREAS por município:
+
+![Drill-across: doações e unidades por município](docs/evidencias_olap/07_drill_across.png)
+
+**Ranking** — 10 municípios que mais receberam doações:
+
+![Ranking dos municípios por itens doados](docs/evidencias_olap/08_ranking.png)
+
+As evidências das 10 consultas estão em [`docs/evidencias_olap/`](docs/evidencias_olap/).
 
 ## 📂 Estrutura do Repositório
 
