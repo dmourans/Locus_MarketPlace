@@ -132,7 +132,6 @@ jupyter notebook analise_municipios.ipynb
 
 | Avatar | Nome | GitHub |
 |:---:|---|---|
-| <img src="https://github.com/Anr30.png" width="40" style="border-radius:50%"> | Anderson Belarmino | [@Anr30](https://github.com/Anr30) |
 | <img src="https://github.com/ACSJr.png" width="40" style="border-radius:50%"> | Antônio Carlos | [@ACSJr](https://github.com/ACSJr) |
 | <img src="https://github.com/dmourans.png" width="40" style="border-radius:50%"> | Deivid Nogueira | [@dmourans](https://github.com/dmourans) |
 | <img src="https://github.com/denysOliveira97.png" width="40" style="border-radius:50%"> | Denys Oliveira | [@dns97](https://github.com/denysOliveira97) |
