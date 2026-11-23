@@ -21,7 +21,7 @@ O **Locus MarketPlace** é uma iniciativa de análise e visualização de dados 
 
 ### 🎬 Vídeo de demonstração
 
-> 🚧 Em produção — o vídeo será disponibilizado neste repositório, em `docs/video/`.
+▶️ **[Assistir ao vídeo de demonstração](docs/video/locus_marketplace_demo.mp4)** (1 min, com legendas)
 
 Roteiro do vídeo:
 
