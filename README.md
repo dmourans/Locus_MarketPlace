@@ -4,7 +4,7 @@
 ![Streamlit](https://img.shields.io/badge/Streamlit-%23FE4B4B.svg?style=for-the-badge&logo=streamlit&logoColor=white)
 ![Pandas](https://img.shields.io/badge/pandas-%23150458.svg?style=for-the-badge&logo=pandas&logoColor=white)
 
-> Projeto acadêmico desenvolvido para a disciplina de **PROJETO INTEGRADOR: CIÊNCIA DE DADOS APLICADA A SITUAÇÕES DE MERCADO**  
+> Projeto acadêmico desenvolvido para a disciplina de **PROJETO INTEGRADOR: APOIO DECISÓRIO AOS NEGÓCIOS**  
 > SENAC EAD — Banco de Dados
 
 🌐 **Acesse o Dashboard Interativo Online:** [locusmarketplace.streamlit.app](https://locusmarketplace.streamlit.app/)
