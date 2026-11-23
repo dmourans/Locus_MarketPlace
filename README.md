@@ -21,7 +21,11 @@ O **Locus MarketPlace** é uma iniciativa de análise e visualização de dados 
 
 ### 🎬 Vídeo de demonstração
 
-▶️ **[Assistir ao vídeo de demonstração](docs/video/locus_marketplace_demo.mp4)** (1 min, com legendas)
+▶️ **[Assistir ao vídeo de demonstração no YouTube](https://youtu.be/S8pQINfnqjw)** (1 min, com legendas)
+
+[![Vídeo de demonstração do Locus MarketPlace](https://img.youtube.com/vi/S8pQINfnqjw/hqdefault.jpg)](https://youtu.be/S8pQINfnqjw)
+
+O arquivo do vídeo também está no repositório: [`docs/video/locus_marketplace_demo.mp4`](docs/video/locus_marketplace_demo.mp4) ([baixar](https://github.com/dmourans/Locus_MarketPlace/raw/main/docs/video/locus_marketplace_demo.mp4)).
 
 Roteiro do vídeo:
 
